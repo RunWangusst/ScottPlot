@@ -20,6 +20,8 @@ public partial class DraggableAxisSpans : Form, IDemoWindow
         formsPlot1.Plot.Add.Signal(Generate.Sin());
         formsPlot1.Plot.Add.Signal(Generate.Cos());
 
+        //formsPlot1.Menu.Add
+
         var vs = formsPlot1.Plot.Add.VerticalSpan(.23, .78);
         vs.IsDraggable = true;
         vs.IsResizable = true;
@@ -30,20 +32,60 @@ public partial class DraggableAxisSpans : Form, IDemoWindow
 
         formsPlot1.Refresh();
 
+        formsPlot1.Menu.AddSeparator();
+
+        formsPlot1.Menu.Add("Add HorizontalSpan", (formsplot1) =>
+        {
+            // 获取鼠标点击位置
+            var hs = formsPlot1.Plot.Add.HorizontalSpan(30, 42);
+            hs.LegendText = $"HorizontalSpan{new Random().Next(100)}";
+            hs.IsDraggable = true;
+            hs.IsResizable = true;
+            formsplot1.Refresh();
+        });
+        formsPlot1.Menu.Add("Add VerticalSpan", (formsplot1) =>
+        {
+            var vs = formsPlot1.Plot.Add.VerticalSpan(.4, .6);
+            vs.LegendText = $"VerticalSpan{new Random().Next(100)}";
+            vs.IsDraggable = true;
+            vs.IsResizable = true;
+            formsplot1.Refresh();
+        });
+
+        formsPlot1.Menu.Add("Remove Span", (formsplot1) =>
+        {
+            if(null != thingUnderMouse)
+            {
+                formsPlot1.Plot.Remove(thingUnderMouse.Span);
+                formsplot1.Refresh();
+            }
+        });
+
         // use events for custom mouse interactivity
         formsPlot1.MouseDown += FormsPlot1_MouseDown;
         formsPlot1.MouseUp += FormsPlot1_MouseUp;
         formsPlot1.MouseMove += FormsPlot1_MouseMove;
     }
 
+    AxisSpanUnderMouse thingUnderMouse;
     private void FormsPlot1_MouseDown(object? sender, MouseEventArgs e)
     {
-        var thingUnderMouse = GetSpanUnderMouse(e.X, e.Y);
+        thingUnderMouse = GetSpanUnderMouse(e.X, e.Y);
         if (thingUnderMouse is not null)
         {
+            UpdateInformations(thingUnderMouse, thingUnderMouse.MouseStart);
             SpanBeingDragged = thingUnderMouse;
+
+            if (e.Button == MouseButtons.Right) return;
+
             formsPlot1.Interaction.Disable(); // disable panning while dragging
         }
+    }
+
+    private void UpdateInformations(AxisSpanUnderMouse currentSpan, Coordinates coordinates)
+    {
+        this.lbLocation.Text = $"Min: {currentSpan.OriginalRange.Min}, Max: {currentSpan.OriginalRange.Max}";
+        this.lbPixelCoordinate.Text = $"Start: {coordinates.X}, End: {coordinates.Y}";
     }
 
     private void FormsPlot1_MouseUp(object? sender, MouseEventArgs e)
@@ -61,6 +103,7 @@ public partial class DraggableAxisSpans : Form, IDemoWindow
             Coordinates mouseNow = formsPlot1.Plot.GetCoordinates(e.X, e.Y);
             SpanBeingDragged.DragTo(mouseNow);
             formsPlot1.Refresh();
+            UpdateInformations(SpanBeingDragged, mouseNow);
         }
         else
         {
@@ -70,6 +113,11 @@ public partial class DraggableAxisSpans : Form, IDemoWindow
             else if (spanUnderMouse.IsResizingHorizontally) Cursor = Cursors.SizeWE;
             else if (spanUnderMouse.IsResizingVertically) Cursor = Cursors.SizeNS;
             else if (spanUnderMouse.IsMoving) Cursor = Cursors.SizeAll;
+
+            if (null != spanUnderMouse)
+            {
+                UpdateInformations(spanUnderMouse, spanUnderMouse.MouseStart);
+            }
         }
     }
 

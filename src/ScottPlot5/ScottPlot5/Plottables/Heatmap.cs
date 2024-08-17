@@ -2,6 +2,12 @@
 
 public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
 {
+    /// <summary>
+    /// Data values for the heatmap.
+    /// <see cref="Update"/> must be called after changing this array or editing its values.
+    /// </summary>
+    public double[,] Intensities { get; set; } = intensities;
+
     public bool IsVisible { get; set; } = true;
     public IAxes Axes { get; set; } = new Axes();
     private IColormap _colormap { get; set; } = new Colormaps.Viridis();
@@ -149,19 +155,40 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
     /// <summary>
     /// Width of a single cell from the heatmap (in coordinate units)
     /// </summary>
-    private double CellWidth => ExtentOrDefault.Width / Intensities.GetLength(1);
+    public double CellWidth
+    {
+        get
+        {
+            return ExtentOrDefault.Width / Intensities.GetLength(1);
+        }
+        set
+        {
+            double left = ExtentOrDefault.Left;
+            double right = ExtentOrDefault.Left + value * Intensities.GetLength(1);
+            double bottom = ExtentOrDefault.Bottom;
+            double top = ExtentOrDefault.Top;
+            Extent = new(left, right, bottom, top);
+        }
+    }
 
     /// <summary>
     /// Height of a single cell from the heatmap (in coordinate units)
     /// </summary>
-    private double CellHeight => ExtentOrDefault.Height / Intensities.GetLength(0);
-
-    /// <summary>
-    /// This object holds data values for the heatmap.
-    /// After editing contents users must call <see cref="Update"/> before changes
-    /// appear on the heatmap.
-    /// </summary>
-    public readonly double[,] Intensities = intensities;
+    public double CellHeight
+    {
+        get
+        {
+            return ExtentOrDefault.Height / Intensities.GetLength(0);
+        }
+        set
+        {
+            double left = ExtentOrDefault.Left;
+            double right = ExtentOrDefault.Right;
+            double bottom = ExtentOrDefault.Bottom;
+            double top = ExtentOrDefault.Bottom + value * Intensities.GetLength(0);
+            Extent = new(left, right, bottom, top);
+        }
+    }
 
     /// <summary>
     /// Defines what color will be used to fill cells containing NaN.
@@ -285,6 +312,7 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
     /// </summary>
     public void Update()
     {
+        DataRange = Range.GetRange(Intensities);
         uint[] argbs = GetArgbValues();
         Bitmap?.Dispose();
         Bitmap = Drawing.BitmapFromArgbs(argbs, Width, Height);
@@ -293,6 +321,19 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
     public AxisLimits GetAxisLimits()
     {
         return new(AlignedExtent);
+    }
+
+    public CoordinateRect SelectedCell { get; set; }
+
+    public SKRect SelectedRect
+    {
+        get
+        {
+            if (SelectedCell == CoordinateRect.Empty)
+                return SKRect.Empty;
+            else
+                return Axes.GetPixelRect(SelectedCell).ToSKRect();
+        }
     }
 
     /// <summary>
@@ -320,18 +361,51 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
         CoordinateRect rect = AlignedExtent;
 
         if (!rect.Contains(coordinates))
+        {
+            SelectedCell = CoordinateRect.Empty;
             return double.NaN;
+        }
 
         (int xIndex, int yIndex) = GetIndexes(coordinates);
+        // 当前选中的单元格 cell
+        SelectedCell = new CoordinateRect(CellWidth * xIndex, CellWidth * xIndex + CellWidth,
+            rect.Height - CellHeight * yIndex - CellHeight, rect.Height - CellHeight * yIndex);
 
-        return Intensities[yIndex, xIndex];
+        var val = Intensities[yIndex, xIndex];
+        if(val == double.NaN)
+        {
+            SelectedCell = CoordinateRect.Empty;
+        }
+
+        return val;
     }
 
     public IEnumerable<LegendItem> LegendItems => Enumerable.Empty<LegendItem>();
 
-    public Range GetRange() => Range.GetRange(Intensities);
+    public Range GetRange() => ManualRange ?? DataRange;
 
-    public void Render(RenderPack rp)
+    /// <summary>
+    /// Range of values spanned by the data the last time it was updated
+    /// </summary>
+    public Range DataRange { get; private set; }
+
+
+    private Range? _ManualRange;
+
+    /// <summary>
+    /// If supplied, the colormap will span this range of values
+    /// </summary>
+    public Range? ManualRange
+    {
+        get => _ManualRange;
+        set
+        {
+            _ManualRange = value;
+            Update();
+        }
+    }
+
+    public virtual void Render(RenderPack rp)
     {
         if (Bitmap is null)
             Update(); // automatically generate the bitmap on first render if it was not generated manually
@@ -344,5 +418,12 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
         SKRect rect = Axes.GetPixelRect(AlignedExtent).ToSKRect();
 
         rp.Canvas.DrawBitmap(Bitmap, rect, paint);
+        paint.Color = SKColors.Red;
+        paint.StrokeWidth = 2;
+        paint.IsStroke = true;
+        if (!SelectedRect.IsEmpty)
+        {
+            rp.Canvas.DrawRect(SelectedRect, paint);
+        }
     }
 }

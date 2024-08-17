@@ -1,4 +1,6 @@
 ﻿using ScottPlotCookbook;
+using SkiaSharp;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace WinForms_Demo.Demos;
@@ -101,6 +103,7 @@ public partial class CookbookViewer : Form, IDemoWindow
 
         formsPlot1.Reset();
         selectedRecipe.Execute(formsPlot1.Plot);
+        formsPlot1.MouseDown += FormsPlot1_MouseDown;
         formsPlot1.Refresh();
 
         if (JsonInfo is null)
@@ -126,6 +129,28 @@ public partial class CookbookViewer : Form, IDemoWindow
             .Replace("DESC", recipeInfos.Single().Description);
 
         rtbCode.Text = recipeInfos.Single().Source;
+    }
+
+    private void FormsPlot1_MouseDown(object? sender, MouseEventArgs e)
+    {
+        ScottPlot.CoordinateRect rect = formsPlot1.Plot.GetCoordinateRect(e.X, e.Y, radius: 10);
+
+        var heatmap = formsPlot1.Plot.PlottableList.OfType<ScottPlot.Plottables.Heatmap>().FirstOrDefault();
+
+        if (null != heatmap)
+        {
+            // 
+            ScottPlot.Coordinates coordinates = new ScottPlot.Coordinates(rect.Left + rect.Width / 2, rect.Bottom + rect.Height / 2);
+            (int xIndex, int yIndex) = heatmap.GetIndexes(coordinates);
+            var aa = heatmap.GetValue(coordinates);
+
+            rtbDescription.Text = $"({coordinates.X}, {coordinates.Y})\n{xIndex},{yIndex}\n{aa}\n" +
+                $"pixel rect: {heatmap.SelectedRect} \n" +
+                $"coordinate rect:{heatmap.SelectedCell}";
+            Console.WriteLine($"aa: {aa}");
+
+            formsPlot1.Refresh();
+        }
     }
 
     private void tbFilter_TextChanged(object sender, EventArgs e)
