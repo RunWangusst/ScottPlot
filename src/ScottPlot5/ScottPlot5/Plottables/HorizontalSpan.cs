@@ -23,13 +23,18 @@ public class HorizontalSpan : AxisSpan, IPlottable
 
     public override AxisLimits GetAxisLimits()
     {
-        return AxisLimits.HorizontalOnly(Left, Right);
+        return EnableAutoscale ? AxisLimits.HorizontalOnly(Left, Right) : AxisLimits.NoLimits;
     }
 
     public override void Render(RenderPack rp)
     {
         PixelRangeY vert = new(rp.DataRect.Bottom, rp.DataRect.Top);
         PixelRangeX horiz = new(Axes.GetPixelX(Left), Axes.GetPixelX(Right));
+        if (horiz.Span < 1)
+        {
+            float middle = (horiz.Left + horiz.Right) / 2;
+            horiz = new(middle - 0.5F, middle + 0.5F);
+        }
         PixelRect rect = new(horiz, vert);
         Render(rp, rect);
     }

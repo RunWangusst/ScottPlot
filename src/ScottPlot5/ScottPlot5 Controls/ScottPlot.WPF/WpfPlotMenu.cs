@@ -35,7 +35,24 @@ public class WpfPlotMenu : IPlotMenu
             OnInvoke = CopyImageToClipboard
         };
 
-        return new ContextMenuItem[] { saveImage, copyImage };
+        ContextMenuItem autoscale = new()
+        {
+            Label = "Autoscale",
+            OnInvoke = Autoscale,
+        };
+
+        ContextMenuItem newWindow = new()
+        {
+            Label = "Open in New Window",
+            OnInvoke = OpenInNewWindow,
+        };
+
+        return new ContextMenuItem[]
+        {
+            saveImage,
+            copyImage,
+            newWindow,
+        };
     }
 
     public ContextMenu GetContextMenu()
@@ -122,6 +139,18 @@ public class WpfPlotMenu : IPlotMenu
         bmpImage.StreamSource = ms;
         bmpImage.EndInit();
         Clipboard.SetImage(bmpImage);
+    }
+
+    public void Autoscale(IPlotControl plotControl)
+    {
+        plotControl.Plot.Axes.AutoScale();
+        plotControl.Refresh();
+    }
+
+    public void OpenInNewWindow(IPlotControl plotControl)
+    {
+        WpfPlotViewer.Launch(plotControl.Plot, "Interactive Plot");
+        plotControl.Refresh();
     }
 
     public void Reset()

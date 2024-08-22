@@ -59,10 +59,12 @@ public class FractionalAutoScaler : IAutoScaler
             {
                 if (InvertedX)
                 {
-                    (left, right) = (right, left);
+                    xAxis.Range.Set(right, left);
                 }
-
-                xAxis.Range.Set(left, right);
+                else
+                {
+                    xAxis.Range.Set(left, right);
+                }
             }
         }
 
@@ -74,22 +76,20 @@ public class FractionalAutoScaler : IAutoScaler
             {
                 if (InvertedY)
                 {
-                    (bottom, top) = (top, bottom);
+                    yAxis.Range.Set(top, bottom);
                 }
-
-                yAxis.Range.Set(bottom, top);
+                else
+                {
+                    yAxis.Range.Set(bottom, top);
+                }
             }
         }
     }
 
     public AxisLimits GetAxisLimits(Plot plot, IXAxis xAxis, IYAxis yAxis)
     {
-        ExpandingAxisLimits limits = new();
-
-        foreach (IPlottable plottable in plot.PlottableList.Where(x => x.Axes.XAxis == xAxis && x.Axes.YAxis == yAxis))
-        {
-            limits.Expand(plottable.GetAxisLimits());
-        }
+        AxisLimits dataLimits = plot.Axes.GetDataLimits(xAxis, yAxis);
+        ExpandingAxisLimits limits = new(dataLimits);
 
         if (!limits.IsRealX)
         {
@@ -104,11 +104,23 @@ public class FractionalAutoScaler : IAutoScaler
         if (limits.Left == limits.Right)
         {
             limits.SetX(limits.Left - 1, limits.Right + 1);
+
+            if (limits.Left == limits.Right)
+            {
+                limits.Left = NumericConversion.DecrementLargeDouble(limits.Left);
+                limits.Right = NumericConversion.IncrementLargeDouble(limits.Right);
+            }
         }
 
         if (limits.Bottom == limits.Top)
         {
             limits.SetY(limits.Bottom - 1, limits.Top + 1);
+
+            if (limits.Bottom == limits.Top)
+            {
+                limits.Bottom = NumericConversion.DecrementLargeDouble(limits.Bottom);
+                limits.Top = NumericConversion.IncrementLargeDouble(limits.Top);
+            }
         }
 
         AxisLimits newLimits = new(

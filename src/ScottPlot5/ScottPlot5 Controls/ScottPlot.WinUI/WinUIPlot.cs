@@ -9,23 +9,21 @@ namespace ScottPlot.WinUI;
 
 public partial class WinUIPlot : UserControl, IPlotControl
 {
-    private readonly SKXamlCanvas _canvas = CreateRenderTarget();
-
-    public Plot Plot { get; } = new();
-
+    public Plot Plot { get; internal set; }
     public SkiaSharp.GRContext? GRContext => null;
-
     public IPlotInteraction Interaction { get; set; }
     public IPlotMenu Menu { get; set; }
-
+    public Interactivity.UserInputProcessor UserInputProcessor { get; }
     public Window? AppWindow { get; set; } // https://stackoverflow.com/a/74286947
+    public float DisplayScale { get; set; } = 1;
 
-    public float DisplayScale { get; set; }
+    private readonly SKXamlCanvas _canvas = CreateRenderTarget();
 
     public WinUIPlot()
     {
-        DisplayScale = DetectDisplayScale();
+        Plot = new() { PlotControl = this };
         Interaction = new Interaction(this);
+        UserInputProcessor = new(Plot);
         Menu = new WinUIPlotMenu(this);
 
         Background = new SolidColorBrush(Microsoft.UI.Colors.White);
@@ -39,18 +37,40 @@ public partial class WinUIPlot : UserControl, IPlotControl
         _canvas.DoubleTapped += OnDoubleTapped;
         _canvas.KeyDown += OnKeyDown;
         _canvas.KeyUp += OnKeyUp;
+        Loaded += WinUIPlot_Loaded;
 
         this.Content = _canvas;
+    }
+
+    private void WinUIPlot_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot is null)
+            return;
+
+        XamlRoot.Changed += (s, e) => DetectDisplayScale();
+        Plot.ScaleFactor = XamlRoot.RasterizationScale;
+        DisplayScale = (float)XamlRoot.RasterizationScale;
     }
 
     private static SKXamlCanvas CreateRenderTarget()
     {
         return new SKXamlCanvas
         {
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Stretch,
+            HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch,
             Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent)
         };
+    }
+
+    public void Reset()
+    {
+        Reset(new Plot());
+    }
+
+    public void Reset(Plot plot)
+    {
+        Plot = plot;
+        Plot.PlotControl = this;
     }
 
     public void Refresh()
@@ -72,7 +92,8 @@ public partial class WinUIPlot : UserControl, IPlotControl
     {
         Focus(FocusState.Pointer);
 
-        Interaction.MouseDown(e.Pixel(this), e.ToButton(this));
+        Interaction.MouseDown(e.Pixel(this), e.OldToButton(this));
+        UserInputProcessor.ProcessMouseDown(this, e);
 
         (sender as UIElement)?.CapturePointer(e.Pointer);
 
@@ -81,7 +102,8 @@ public partial class WinUIPlot : UserControl, IPlotControl
 
     private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        Interaction.MouseUp(e.Pixel(this), e.ToButton(this));
+        Interaction.MouseUp(e.Pixel(this), e.OldToButton(this));
+        UserInputProcessor.ProcessMouseUp(this, e);
 
         (sender as UIElement)?.ReleasePointerCapture(e.Pointer);
 
@@ -91,6 +113,7 @@ public partial class WinUIPlot : UserControl, IPlotControl
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         Interaction.OnMouseMove(e.Pixel(this));
+        UserInputProcessor.ProcessMouseMove(this, e);
         base.OnPointerMoved(e);
     }
 
@@ -103,25 +126,33 @@ public partial class WinUIPlot : UserControl, IPlotControl
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         Interaction.MouseWheelVertical(e.Pixel(this), e.GetCurrentPoint(this).Properties.MouseWheelDelta);
+        UserInputProcessor.ProcessMouseWheel(this, e);
         base.OnPointerWheelChanged(e);
     }
 
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        Interaction.KeyDown(e.Key());
+        Interaction.KeyDown(e.OldToKey());
+        UserInputProcessor.ProcessKeyDown(this, e);
         base.OnKeyDown(e);
     }
 
     private void OnKeyUp(object sender, KeyRoutedEventArgs e)
     {
-        Interaction.KeyUp(e.Key());
+        System.Diagnostics.Debug.WriteLine($"KEY UP {e.Key}");
+        Interaction.KeyUp(e.OldToKey());
+        UserInputProcessor.ProcessKeyUp(this, e);
         base.OnKeyUp(e);
     }
 
     public float DetectDisplayScale()
     {
-        // TODO: improve support for DPI scale detection
-        // https://github.com/ScottPlot/ScottPlot/issues/2760
-        return 1.0f;
+        if (XamlRoot is not null)
+        {
+            Plot.ScaleFactor = XamlRoot.RasterizationScale;
+            DisplayScale = (float)XamlRoot.RasterizationScale;
+        }
+
+        return DisplayScale;
     }
 }

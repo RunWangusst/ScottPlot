@@ -48,6 +48,11 @@ public interface IAxis : IPanel
     ITickGenerator TickGenerator { get; set; } // TODO: never call TickGenerator.Generate() externally
 
     /// <summary>
+    /// Replace the <see cref="TickGenerator"/> with a <see cref="NumericManual"/> pre-loaded with the given ticks.
+    /// </summary>
+    public void SetTicks(double[] xs, string[] labels);
+
+    /// <summary>
     /// Use the <see cref="TickLabelStyle"/> to generate ticks with ideal spacing.
     /// </summary>
     public void RegenerateTicks(PixelLength size);
@@ -55,13 +60,19 @@ public interface IAxis : IPanel
     /// <summary>
     /// The label is the text displayed distal to the ticks
     /// </summary>
-    Label Label { get; }
+    LabelStyle Label { get; }
 
     TickMarkStyle MajorTickStyle { get; set; }
 
     TickMarkStyle MinorTickStyle { get; set; }
 
-    Label TickLabelStyle { get; set; }
+    LabelStyle TickLabelStyle { get; set; }
 
     LineStyle FrameLineStyle { get; }
+}
+
+public static class IAxisExtensions
+{
+    public static CoordinateRange GetRange(this IAxis axis) => new(axis.Min, axis.Max);
+    public static bool IsInverted(this IAxis axis) => axis.Min > axis.Max;
 }

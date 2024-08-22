@@ -11,6 +11,7 @@ public class DefaultGrid(IXAxis xAxis, IYAxis yAxis) : IGrid
 
     public Color MajorLineColor
     {
+        get => XAxisStyle.MajorLineStyle.Color;
         set
         {
             XAxisStyle.MajorLineStyle.Color = value;
@@ -31,8 +32,8 @@ public class DefaultGrid(IXAxis xAxis, IYAxis yAxis) : IGrid
     {
         set
         {
-            XAxisStyle.MinorLineStyle.Width = value;
-            YAxisStyle.MinorLineStyle.Width = value;
+            XAxisStyle.MajorLineStyle.Width = value;
+            YAxisStyle.MajorLineStyle.Width = value;
         }
     }
 
@@ -50,15 +51,20 @@ public class DefaultGrid(IXAxis xAxis, IYAxis yAxis) : IGrid
         if (!IsVisible)
             return;
 
-        var minX = Math.Min(XAxis.Min, XAxis.Max);
-        var maxX = Math.Max(XAxis.Min, XAxis.Max);
-        var minY = Math.Min(YAxis.Min, YAxis.Max);
-        var maxY = Math.Max(YAxis.Min, YAxis.Max);
+        if (XAxisStyle.IsVisible)
+        {
+            var minX = Math.Min(XAxis.Min, XAxis.Max);
+            var maxX = Math.Max(XAxis.Min, XAxis.Max);
+            var xTicks = XAxis.TickGenerator.Ticks.Where(x => x.Position >= minX && x.Position <= maxX);
+            XAxisStyle.Render(rp, XAxis, xTicks);
+        }
 
-        var xTicks = XAxis.TickGenerator.Ticks.Where(x => x.Position >= minX && x.Position <= maxX);
-        var yTicks = YAxis.TickGenerator.Ticks.Where(x => x.Position >= minY && x.Position <= maxY);
-
-        XAxisStyle.Render(rp, XAxis, xTicks);
-        YAxisStyle.Render(rp, YAxis, yTicks);
+        if (YAxisStyle.IsVisible)
+        {
+            var minY = Math.Min(YAxis.Min, YAxis.Max);
+            var maxY = Math.Max(YAxis.Min, YAxis.Max);
+            var yTicks = YAxis.TickGenerator.Ticks.Where(x => x.Position >= minY && x.Position <= maxY);
+            YAxisStyle.Render(rp, YAxis, yTicks);
+        }
     }
 }

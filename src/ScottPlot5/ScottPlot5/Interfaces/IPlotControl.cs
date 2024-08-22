@@ -13,9 +13,16 @@ public interface IPlotControl
     void Refresh();
 
     /// <summary>
-    /// Advanced options for configuring how user inputs manipulate the plot
+    /// Options for configuring user inputs.
+    /// This functionality is being replaced by <see cref="UserInputProcessor"/>.
     /// </summary>
     IPlotInteraction Interaction { get; set; }
+
+    /// <summary>
+    /// This object takes in UI events and contains logic for how to respond to them.
+    /// This is a newer alternative to the older <see cref="Interaction"/> system.
+    /// </summary>
+    Interactivity.UserInputProcessor UserInputProcessor { get; }
 
     /// <summary>
     /// Platform-specific logic for managing the context menu
@@ -44,4 +51,14 @@ public interface IPlotControl
     /// Mouse positions are multiplied by this value for pixel/coordinate conversions.
     /// </summary>
     float DisplayScale { get; set; }
+
+    /// <summary>
+    /// Disposes the current Plot and creates a new one for the control
+    /// </summary>
+    void Reset();
+
+    /// <summary>
+    /// Loads the given Plot into the control
+    /// </summary>
+    void Reset(Plot plot);
 }

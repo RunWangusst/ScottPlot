@@ -129,13 +129,13 @@ public class Scatter : ICategory
             double[] ys2 = Generate.Cos(51);
 
             var sp1 = myPlot.Add.Scatter(xs, ys1);
-            sp1.Label = "Sine";
+            sp1.LegendText = "Sine";
             sp1.LineWidth = 3;
             sp1.Color = Colors.Magenta;
             sp1.MarkerSize = 15;
 
             var sp2 = myPlot.Add.Scatter(xs, ys2);
-            sp2.Label = "Cosine";
+            sp2.LegendText = "Cosine";
             sp2.LineWidth = 2;
             sp2.Color = Colors.Green;
             sp2.MarkerSize = 10;
@@ -168,10 +168,10 @@ public class Scatter : ICategory
                 sp.Color = palette.GetColor(i);
 
                 var txt = myPlot.Add.Text(patterns[i].ToString(), 51, yOffset);
-                txt.Label.ForeColor = sp.Color;
-                txt.Label.FontSize = 22;
-                txt.Label.Bold = true;
-                txt.Label.Alignment = Alignment.MiddleLeft;
+                txt.LabelFontColor = sp.Color;
+                txt.LabelFontSize = 22;
+                txt.LabelBold = true;
+                txt.LabelAlignment = Alignment.MiddleLeft;
             }
 
             myPlot.Axes.Margins(.05, .5, .05, .05);
@@ -203,7 +203,7 @@ public class Scatter : ICategory
         [Test]
         public override void Execute()
         {
-            DateTime[] xs = Generate.DateTime.Days(100);
+            DateTime[] xs = Generate.ConsecutiveDays(100);
             double[] ys = Generate.RandomWalk(xs.Length);
 
             myPlot.Add.Scatter(xs, ys);
@@ -228,17 +228,279 @@ public class Scatter : ICategory
 
             var sp1 = myPlot.Add.Scatter(xs, ys1);
             sp1.ConnectStyle = ConnectStyle.Straight;
-            sp1.Label = "Straight";
+            sp1.LegendText = "Straight";
 
             var sp2 = myPlot.Add.Scatter(xs, ys2);
             sp2.ConnectStyle = ConnectStyle.StepHorizontal;
-            sp2.Label = "StepHorizontal";
+            sp2.LegendText = "StepHorizontal";
 
             var sp3 = myPlot.Add.Scatter(xs, ys3);
             sp3.ConnectStyle = ConnectStyle.StepVertical;
-            sp3.Label = "StepVertical";
+            sp3.LegendText = "StepVertical";
 
             myPlot.ShowLegend();
+        }
+    }
+
+    public class ScatterWithGaps : RecipeBase
+    {
+        public override string Name => "Scatter with Gaps";
+        public override string Description => "NaN values in a scatter plot's data " +
+            "will appear as gaps in the line.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            // long stretch of empty data
+            for (int i = 10; i < 20; i++)
+                ys[i] = double.NaN;
+
+            // single missing data point
+            ys[30] = double.NaN;
+
+            // single floating data point
+            for (int i = 35; i < 40; i++)
+                ys[i] = double.NaN;
+            for (int i = 40; i < 45; i++)
+                ys[i] = double.NaN;
+
+            myPlot.Add.Scatter(xs, ys);
+        }
+    }
+
+    public class ScatterSmooth : RecipeBase
+    {
+        public override string Name => "Scatter Plot with Smooth Lines";
+        public override string Description => "Scatter plots draw straight lines " +
+            "between points by default, but setting the Smooth property allows the " +
+            "scatter plot to connect points with smooth lines. Lines are smoothed " +
+            "using cubic spline interpolation.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(10);
+            double[] ys = Generate.RandomSample(10, 5, 15);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.Smooth = true;
+            sp.LegendText = "Smooth";
+            sp.LineWidth = 2;
+            sp.MarkerSize = 10;
+        }
+    }
+
+    public class ScatterSmoothTension : RecipeBase
+    {
+        public override string Name => "Smooth Line Tension";
+        public override string Description => "Tension of smooth lines can be " +
+            "adjusted for some smoothing strategies. " +
+            "Low tensions lead to 'overshoot' and high tensions produce curves" +
+            "which appear more like straight lines.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.RandomWalk(10);
+            double[] ys = Generate.RandomWalk(10);
+
+            var mk = myPlot.Add.Markers(xs, ys);
+            mk.MarkerShape = MarkerShape.OpenCircle;
+            mk.Color = Colors.Black;
+
+            double[] tensions = { 0.3, 0.5, 1.0, 3.0 };
+
+            foreach (double tension in tensions)
+            {
+                var sp = myPlot.Add.ScatterLine(xs, ys);
+                sp.Smooth = true;
+                sp.SmoothTension = tension;
+                sp.LegendText = $"Tension {tension}";
+                sp.LineWidth = 2;
+            }
+
+            myPlot.ShowLegend(Alignment.UpperLeft);
+        }
+    }
+
+    public class ScatterQuad : RecipeBase
+    {
+        public override string Name => "Smooth Scatter without Overshoot";
+        public override string Description => "The quadratic half point path strategy " +
+            "allows scatter plots to be displayed with smooth lines connecting points, but " +
+            "lines are eased in and out of points so they never 'overshoot' the values vertically.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(10);
+            double[] ys = Generate.RandomSample(10, 5, 15);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.PathStrategy = new ScottPlot.PathStrategies.QuadHalfPoint();
+            sp.LegendText = "Smooth";
+            sp.LineWidth = 2;
+            sp.MarkerSize = 10;
+        }
+    }
+
+    public class ScatterLimitIndex : RecipeBase
+    {
+        public override string Name => "Limiting Display with Render Indexes";
+        public override string Description => "Although a scatter plot may contain " +
+            "a very large amount of data, much of it may be unpopulated. The user can " +
+            "define min and max render indexes, and only values within that range will " +
+            "be displayed when the scatter plot is rendered.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.MinRenderIndex = 10;
+            sp.MaxRenderIndex = 40;
+        }
+    }
+
+    public class ScatterFill : RecipeBase
+    {
+        public override string Name => "Scatter Plot with Fill";
+        public override string Description => "The area beneath a scatter plot can be filled.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.FillY = true;
+            sp.FillYColor = sp.Color.WithAlpha(.2);
+        }
+    }
+
+    public class ScatterFillValue : RecipeBase
+    {
+        public override string Name => "Scatter Plot Filled to a Value";
+        public override string Description => "The base of the fill can be defined.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.FillY = true;
+            sp.FillYColor = sp.Color.WithAlpha(.2);
+            sp.FillYValue = 0.6;
+        }
+    }
+
+    public class ScatterFillAboveBelow : RecipeBase
+    {
+        public override string Name => "Scatter Plot Filled Above and Below";
+        public override string Description => "Filled areas above and " +
+            "below the FillY value can be individually customized";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.FillY = true;
+            sp.FillYValue = 0;
+            sp.FillYAboveColor = Colors.Green.WithAlpha(.2);
+            sp.FillYBelowColor = Colors.Red.WithAlpha(.2);
+        }
+    }
+
+    public class ScatterFillGradient : RecipeBase
+    {
+        public override string Name => "Scatter Plot with Gradient Fill";
+        public override string Description => "The area beneath a scatter plot can be " +
+            "filled with a custom gradient of colors.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+
+            var poly = myPlot.Add.ScatterLine(xs, ys);
+
+            poly.FillY = true;
+            poly.ColorPositions.Add(new(Colors.Red, 0));
+            poly.ColorPositions.Add(new(Colors.Orange, 10));
+            poly.ColorPositions.Add(new(Colors.Yellow, 20));
+            poly.ColorPositions.Add(new(Colors.Green, 30));
+            poly.ColorPositions.Add(new(Colors.Blue, 40));
+            poly.ColorPositions.Add(new(Colors.Violet, 50));
+        }
+    }
+
+    public class ScatterScaleAndOffset : RecipeBase
+    {
+        public override string Name => "Scatter Scale and Offset";
+        public override string Description => "Scatter plot points can be multiplied by custom X and Y scale factors, " +
+            "or shifted horizontally or vertically using X and Y offset values.";
+
+        [Test]
+        public override void Execute()
+        {
+            double[] xs = Generate.Consecutive(51);
+            double[] ys = Generate.Sin(51);
+            var sp = myPlot.Add.Scatter(xs, ys);
+            sp.ScaleX = 100;
+            sp.ScaleY = 10;
+            sp.OffsetX = 500;
+            sp.OffsetY = 5;
+        }
+    }
+
+    public class StackedFilledLinePlot : RecipeBase
+    {
+        public override string Name => "Stacked Filled Line Plot";
+        public override string Description => "A stacked filled line plot effect can be achieved by overlapping ScatterLines that fill area.";
+
+        [Test]
+        public override void Execute()
+        {
+            // create sample data
+            double[] xs = { 1, 2, 3, 4 };
+            double[] ys1 = { 1, 3, 1, 2 };
+            double[] ys2 = { 3, 7, 3, 1 };
+            double[] ys3 = { 5, 2, 5, 6 };
+
+            // shift each plot vertically by the sum of all plots before it
+            ys2 = Enumerable.Range(0, ys2.Length).Select(x => ys2[x] + ys1[x]).ToArray();
+            ys3 = Enumerable.Range(0, ys2.Length).Select(x => ys3[x] + ys2[x]).ToArray();
+
+            // plot the padded data points as ScatterLine
+            var sp3 = myPlot.Add.ScatterLine(xs, ys3, Colors.Black);
+            var sp2 = myPlot.Add.ScatterLine(xs, ys2, Colors.Black);
+            var sp1 = myPlot.Add.ScatterLine(xs, ys1, Colors.Black);
+
+            // set plot style
+            sp1.LineWidth = 2;
+            sp2.LineWidth = 2;
+            sp3.LineWidth = 2;
+            sp1.FillY = true;
+            sp2.FillY = true;
+            sp3.FillY = true;
+            sp1.FillYColor = Colors.Green;
+            sp2.FillYColor = Colors.Orange;
+            sp3.FillYColor = Colors.Blue;
+
+            // use tight margins so data goes to the edge of the plot
+            myPlot.Axes.Margins(0, 0, 0, 0.1);
         }
     }
 }

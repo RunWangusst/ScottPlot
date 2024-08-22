@@ -26,7 +26,7 @@ public class AxisLines : ICategory
     {
         public override string Name => "Axis Line Label";
         public override string Description => "Axis lines have labels that can be used " +
-            "to display arbitrary on the axes they are attached to.";
+            "to display arbitrary text on the axes they are attached to.";
 
         [Test]
         public override void Execute()
@@ -51,6 +51,43 @@ public class AxisLines : ICategory
             var axLine4 = myPlot.Add.HorizontalLine(-.75);
             axLine4.Text = "Line 4";
             axLine4.LabelOppositeAxis = true;
+
+            // extra padding on the right and top ensures labels have room
+            myPlot.Axes.Right.MinimumSize = 30;
+            myPlot.Axes.Top.MinimumSize = 30;
+        }
+    }
+
+    public class AxisLineLabelPositioning : RecipeBase
+    {
+        public override string Name => "Axis Line Label Positioning";
+        public override string Description => "Axis line labels can have " +
+            "custom positioning, including rotation and alignment.";
+
+        [Test]
+        public override void Execute()
+        {
+            myPlot.Add.Signal(Generate.Sin());
+            myPlot.Add.Signal(Generate.Cos());
+
+            var axLine1 = myPlot.Add.VerticalLine(42);
+            axLine1.Text = "Line 1";
+            axLine1.LabelRotation = -90;
+            axLine1.LabelAlignment = Alignment.MiddleRight;
+
+            var axLine2 = myPlot.Add.HorizontalLine(0.75);
+            axLine2.Text = "Line 2";
+            axLine2.LabelRotation = 0;
+            axLine2.LabelAlignment = Alignment.MiddleRight;
+
+            var axLine3 = myPlot.Add.VerticalLine(20);
+            axLine3.Text = "Line 3";
+            axLine3.LabelRotation = -45;
+            axLine3.LabelAlignment = Alignment.UpperRight;
+
+            // extra padding on the bottom and left for the rotated labels
+            myPlot.Axes.Bottom.MinimumSize = 60;
+            myPlot.Axes.Left.MinimumSize = 60;
         }
     }
 
@@ -78,10 +115,65 @@ public class AxisLines : ICategory
             hl2.LineColor = Colors.Navy;
             hl2.LineWidth = 5;
             hl2.Text = "Hello";
-            hl2.Label.FontSize = 24;
-            hl2.Label.BackColor = Colors.Blue;
-            hl2.Label.ForeColor = Colors.Yellow;
+            hl2.LabelFontSize = 24;
+            hl2.LabelBackgroundColor = Colors.Blue;
+            hl2.LabelFontColor = Colors.Yellow;
             hl2.LinePattern = LinePattern.DenselyDashed;
+        }
+    }
+
+    public class AxisLineInLegend : RecipeBase
+    {
+        public override string Name => "Axis Line In Legend";
+        public override string Description => "Axis lines will be added to the legend if their " +
+            "Text property is set unless their ExcludeFromLegend property is true.";
+
+        [Test]
+        public override void Execute()
+        {
+            myPlot.Add.Signal(Generate.Sin());
+            myPlot.Add.Signal(Generate.Cos());
+
+            var axLine1 = myPlot.Add.VerticalLine(24);
+            axLine1.Text = "Line 1";
+
+            var axLine2 = myPlot.Add.HorizontalLine(0.75);
+
+            var axLine3 = myPlot.Add.VerticalLine(37);
+            axLine3.Text = "Line 3";
+            axLine3.ExcludeFromLegend = true;
+
+            var axLine4 = myPlot.Add.HorizontalLine(0.25);
+            axLine4.Text = "Line 4";
+
+            var axLine5 = myPlot.Add.HorizontalLine(-.75);
+            axLine5.Text = "Line 5";
+            axLine5.ExcludeFromLegend = true;
+
+            myPlot.ShowLegend();
+        }
+    }
+
+    public class AxisLineIgnoreLimits : RecipeBase
+    {
+        public override string Name => "Ignore When Autoscaling";
+        public override string Description => "Calling Plot.Axes.AutoScale() or middle-clicking the plot will set the axis limits " +
+            "to fit the data. By default the position of axis lines and spans are included in automatic axis limit calculations, " +
+            "but a flag can be set to ignore certain plottables when automatically scaling the plot.";
+
+        [Test]
+        public override void Execute()
+        {
+            myPlot.Add.Signal(Generate.Sin(51));
+            myPlot.Add.Signal(Generate.Cos(51));
+
+            var hline = myPlot.Add.HorizontalLine(0.23);
+            hline.IsDraggable = true;
+            hline.EnableAutoscale = false;
+
+            var hSpan = myPlot.Add.HorizontalSpan(-10, 20);
+            hSpan.IsDraggable = true;
+            hSpan.EnableAutoscale = false;
         }
     }
 }

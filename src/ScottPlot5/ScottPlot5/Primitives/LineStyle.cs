@@ -6,31 +6,127 @@
 /// </summary>
 public class LineStyle
 {
-    public float Width { get; set; } = 1.0f;
+    /// <summary>
+    /// Width of the line (in pixels)
+    /// </summary>
+    public float Width { get; set; } = 0;
+
+    /// <summary>
+    /// If enabled, <see cref="Width"/> is ignored and lines are rendered as a single pixel (regardless of scale factor)
+    /// </summary>
+    public bool Hairline { get; set; } = false;
+
     public Color Color { get; set; } = Colors.Black;
+
     public LinePattern Pattern { get; set; } = LinePattern.Solid;
-    public bool IsVisible { get; set; } = true; // TODO: deprecate in favor of 0 line width
-    public static LineStyle None => new() { IsVisible = false, Width = 0 };
+
+    public bool IsVisible { get; set; } = true;
     public bool AntiAlias { get; set; } = true;
-    public bool CanBeRendered => IsVisible && Width > 0 && Color.Alpha > 0;
 
-    public static LineStyle DefaultMajorStyle => new()
+    public bool Rounded
     {
-        Width = 1,
-        Color = Colors.Black.WithOpacity(.1)
-    };
+        get => StrokeCap == SKStrokeCap.Round;
+        set { StrokeCap = SKStrokeCap.Round; StrokeJoin = SKStrokeJoin.Round; }
+    }
+    public SKStrokeCap StrokeCap { get; set; } = SKStrokeCap.Butt;
+    public SKStrokeJoin StrokeJoin { get; set; } = SKStrokeJoin.Miter;
+    public float StrokeMiter { get; set; } = 4;
 
-    public static LineStyle DefaultMinorStyle => new()
+    public static LineStyle None => new() { Width = 0 };
+
+    public bool CanBeRendered
     {
-        Width = 0,
-        Color = Colors.Black.WithOpacity(.05)
-    };
+        get
+        {
+            if (IsVisible == false) return false;
+            if (Color.Alpha == 0) return false;
+            if (Color == Colors.Transparent) return false;
+            if (Width == 0 && Hairline == false) return false;
+            return true;
+        }
+    }
 
+    public void Render(SKCanvas canvas, Pixel[] starts, Pixel[] ends, SKPaint paint)
+    {
+        if (starts.Length != ends.Length)
+            throw new ArgumentException($"{nameof(starts)} and {nameof(ends)} must have equal length");
+
+        using SKPath path = new();
+
+        for (int i = 0; i < starts.Length; i++)
+        {
+            path.MoveTo(starts[i].X, starts[i].Y);
+            path.LineTo(ends[i].X, ends[i].Y);
+        }
+
+        Drawing.DrawPath(canvas, paint, path, this);
+    }
+
+    public void Render(SKCanvas canvas, PixelLine[] lines, SKPaint paint)
+    {
+        using SKPath path = new();
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            path.MoveTo(lines[i].X1, lines[i].Y1);
+            path.LineTo(lines[i].X2, lines[i].Y2);
+        }
+
+        Drawing.DrawPath(canvas, paint, path, this);
+    }
+
+    public void Render(SKCanvas canvas, PixelLine line, SKPaint paint)
+    {
+        if (!IsVisible)
+            return;
+
+        Drawing.DrawLine(canvas, paint, line, this);
+    }
+
+    public void Render(SKCanvas canvas, PixelRect rect, SKPaint paint)
+    {
+        if (!IsVisible)
+            return;
+
+        Pixel[] pixels =
+        [
+            rect.BottomLeft,
+            rect.TopLeft,
+            rect.TopRight,
+            rect.BottomRight,
+            rect.BottomLeft,
+        ];
+
+        Drawing.DrawLines(canvas, paint, pixels, this);
+    }
+
+    public void Render(SKCanvas canvas, SKPath path, SKPaint paint)
+    {
+        if (!IsVisible)
+            return;
+
+        Drawing.DrawPath(canvas, paint, path, this);
+    }
+
+    [Obsolete("use the overload where the paint is passed last")]
     public void Render(SKCanvas canvas, SKPaint paint, PixelLine line)
     {
-        if (CanBeRendered == false) return;
+        if (!IsVisible)
+            return;
 
-        this.ApplyToPaint(paint);
-        canvas.DrawLine(line.X1, line.Y1, line.X2, line.Y2, paint);
+        Drawing.DrawLine(canvas, paint, line, this);
+    }
+
+    public void ApplyToPaint(SKPaint paint)
+    {
+        paint.Shader = null;
+        paint.IsStroke = true;
+        paint.Color = Color.ToSKColor();
+        paint.StrokeWidth = Hairline ? 1 : Width;
+        paint.PathEffect = Pattern.GetPathEffect();
+        paint.IsAntialias = AntiAlias;
+        paint.StrokeCap = StrokeCap;
+        paint.StrokeJoin = StrokeJoin;
+        paint.StrokeMiter = StrokeMiter;
     }
 }

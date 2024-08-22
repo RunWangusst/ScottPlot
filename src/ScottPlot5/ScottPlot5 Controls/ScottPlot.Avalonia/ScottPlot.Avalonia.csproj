@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFrameworks>net462;net6.0;net8.0</TargetFrameworks>
@@ -10,7 +10,7 @@
 
         <!-- NuGet info -->
         <PackageId>ScottPlot.Avalonia</PackageId>
-        <Version>5.0.22</Version>
+        <Version>5.0.37</Version>
         <Authors>Scott Harden</Authors>
         <Company>Harden Technologies, LLC</Company>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -23,6 +23,7 @@
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <DebugType>portable</DebugType>
         <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <IncludeSource>true</IncludeSource>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
 

@@ -14,10 +14,11 @@ namespace ScottPlot.Avalonia;
 
 public class AvaPlot : Controls.Control, IPlotControl
 {
-    public Plot Plot { get; } = new();
+    public Plot Plot { get; internal set; }
 
     public IPlotInteraction Interaction { get; set; }
     public IPlotMenu Menu { get; set; }
+    public Interactivity.UserInputProcessor UserInputProcessor { get; }
 
     public GRContext? GRContext => null;
 
@@ -25,10 +26,13 @@ public class AvaPlot : Controls.Control, IPlotControl
 
     public AvaPlot()
     {
+        Plot = new() { PlotControl = this };
         ClipToBounds = true;
         DisplayScale = DetectDisplayScale();
         Interaction = new Interaction(this);
+        UserInputProcessor = new(Plot);
         Menu = new AvaPlotMenu(this);
+        Focusable = true; // Required for keyboard events
         Refresh();
     }
 
@@ -69,6 +73,19 @@ public class AvaPlot : Controls.Control, IPlotControl
         context.Custom(customDrawOp);
     }
 
+    public void Reset()
+    {
+        Plot plot = new() { PlotControl = this };
+        Reset(plot);
+    }
+
+    public void Reset(Plot plot)
+    {
+        Plot oldPlot = Plot;
+        Plot = plot;
+        oldPlot?.Dispose();
+    }
+
     public void Refresh()
     {
         Dispatcher.UIThread.InvokeAsync(InvalidateVisual, DispatcherPriority.Background);
@@ -81,9 +98,10 @@ public class AvaPlot : Controls.Control, IPlotControl
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
-        Interaction.MouseDown(
-            position: e.ToPixel(this),
-            button: e.GetCurrentPoint(this).Properties.PointerUpdateKind.ToButton());
+        Pixel pixel = e.ToPixel(this);
+        PointerUpdateKind kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+        Interaction.MouseDown(pixel, kind.OldToButton());
+        UserInputProcessor.ProcessMouseDown(pixel, kind);
 
         e.Pointer.Capture(this);
 
@@ -95,36 +113,43 @@ public class AvaPlot : Controls.Control, IPlotControl
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
-        Interaction.MouseUp(
-            position: e.ToPixel(this),
-            button: e.GetCurrentPoint(this).Properties.PointerUpdateKind.ToButton());
+        Pixel pixel = e.ToPixel(this);
+        PointerUpdateKind kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+        Interaction.MouseUp(pixel, kind.OldToButton());
+        UserInputProcessor.ProcessMouseUp(pixel, kind);
 
         e.Pointer.Capture(null);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
-        Interaction.OnMouseMove(e.ToPixel(this));
+        Pixel pixel = e.ToPixel(this);
+        Interaction.OnMouseMove(pixel);
+        UserInputProcessor.ProcessMouseMove(pixel);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
+        Pixel pixel = e.ToPixel(this);
         float delta = (float)e.Delta.Y; // This is now the correct behavior even if shift is held, see https://github.com/AvaloniaUI/Avalonia/pull/8628
 
         if (delta != 0)
         {
-            Interaction.MouseWheelVertical(e.ToPixel(this), delta);
+            Interaction.MouseWheelVertical(pixel, delta);
+            UserInputProcessor.ProcessMouseWheel(pixel, delta);
         }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        Interaction.KeyDown(e.ToKey());
+        Interaction.KeyDown(e.OldToKey());
+        UserInputProcessor.ProcessKeyDown(e);
     }
 
     protected override void OnKeyUp(KeyEventArgs e)
     {
-        Interaction.KeyUp(e.ToKey());
+        Interaction.KeyUp(e.OldToKey());
+        UserInputProcessor.ProcessKeyUp(e);
     }
 
     public float DetectDisplayScale()

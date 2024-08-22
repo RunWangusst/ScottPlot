@@ -6,16 +6,18 @@ public readonly record struct CoordinateRange(double Min, double Max)
     public double Center => (Min + Max) / 2;
     public static CoordinateRange Infinity => new(double.NegativeInfinity, double.PositiveInfinity);
     public static CoordinateRange NotSet => new(double.PositiveInfinity, double.NegativeInfinity);
+    public static CoordinateRange NoLimits => new(double.NaN, double.NaN);
     public bool IsReal => NumericConversion.IsReal(Max) && NumericConversion.IsReal(Min);
+
+    public bool IsInverted => Min > Max;
+    public double TrueMin => Math.Min(Min, Max);
+    public double TrueMax => Math.Max(Min, Max);
 
     public bool Contains(double value)
     {
-        var trueMin = Math.Min(Min, Max);
-        var trueMax = Math.Max(Min, Max);
-
-        if (value < trueMin)
+        if (value < TrueMin)
             return false;
-        else if (value > trueMax)
+        else if (value > TrueMax)
             return false;
         else
             return true;
@@ -41,5 +43,63 @@ public readonly record struct CoordinateRange(double Min, double Max)
             return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Return the range of values spanned by the given collection
+    /// </summary>
+    public static CoordinateRange MinMax(IEnumerable<double> values)
+    {
+        if (values.Any())
+            return NotSet;
+
+        double min = double.MaxValue;
+        double max = double.MinValue;
+
+        foreach (double value in values)
+        {
+            min = Math.Min(min, value);
+            max = Math.Max(max, value);
+        }
+
+        return new CoordinateRange(min, max);
+    }
+
+    /// <summary>
+    /// Return the range of values spanned by the given collection (ignoring NaN)
+    /// </summary>
+    public static CoordinateRange MinMaxNan(IEnumerable<double> values)
+    {
+        double min = double.NaN;
+        double max = double.NaN;
+
+        foreach (double value in values)
+        {
+            if (double.IsNaN(value)) continue;
+            min = double.IsNaN(min) ? value : Math.Min(min, value);
+            max = double.IsNaN(max) ? value : Math.Max(max, value);
+        }
+
+        return new CoordinateRange(min, max);
+    }
+
+    /// <summary>
+    /// Return a new range expanded to include the given point
+    /// </summary>
+    public CoordinateRange Expanded(double value)
+    {
+        double min = Math.Min(value, Min);
+        double max = Math.Max(value, Max);
+        return new CoordinateRange(min, max);
+    }
+
+    /// <summary>
+    /// Return a copy of this range where <see cref="Max"/> is never less than <see cref="Min"/>
+    /// </summary>
+    public CoordinateRange Rectified()
+    {
+        return Max >= Min
+            ? new(Min, Max)
+            : new(Max, Min);
     }
 }

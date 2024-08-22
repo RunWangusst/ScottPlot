@@ -89,7 +89,7 @@ public partial class DataStreamer : Form, IDemoWindow
             double y1 = Streamer1.Data.NewestPoint;
             var marker1 = formsPlot1.Plot.Add.Marker(x1, y1);
             marker1.Size = 20;
-            marker1.Shape = MarkerShape.HashTag;
+            marker1.Shape = MarkerShape.OpenCircle;
             marker1.Color = Streamer1.LineColor;
             marker1.LineWidth = 2;
 

@@ -1,5 +1,5 @@
 ﻿using ScottPlot.Control;
-using ScottPlot.Extensions;
+using ScottPlot.Interactivity;
 using SkiaSharp;
 using System;
 using System.Diagnostics;
@@ -16,15 +16,17 @@ public abstract class FormsPlotBase : UserControl, IPlotControl
 
     public IPlotInteraction Interaction { get; set; }
     public IPlotMenu Menu { get; set; }
+    public UserInputProcessor UserInputProcessor { get; }
 
     public float DisplayScale { get; set; }
 
     public FormsPlotBase()
     {
+        Plot = new() { PlotControl = this };
         DisplayScale = DetectDisplayScale();
         Interaction = new Interaction(this);
+        UserInputProcessor = new(Plot);
         Menu = new FormsPlotMenu(this);
-        Plot = Reset();
 
         // TODO: replace this with an annotation instead of title
         bool isDesignMode = Process.GetCurrentProcess().ProcessName == "devenv";
@@ -39,25 +41,24 @@ public abstract class FormsPlotBase : UserControl, IPlotControl
         {
             base.BackColor = value;
             if (Plot is not null)
-                Plot.FigureBackground.Color = value.ToColor();
+                Plot.FigureBackground.Color = Color.FromColor(value);
         }
     }
 
-    public Plot Reset()
+    public void Reset()
     {
-        Plot newPlot = new();
-        newPlot.FigureBackground.Color = this.BackColor.ToColor();
-        newPlot.DataBackground.Color = Colors.White;
-
-        return Reset(newPlot);
+        Plot plot = new();
+        plot.FigureBackground.Color = Color.FromColor(BackColor);
+        plot.DataBackground.Color = Colors.White;
+        Reset(plot);
     }
 
-    public Plot Reset(Plot newPlot)
+    public void Reset(Plot plot)
     {
         Plot oldPlot = Plot;
-        Plot = newPlot;
+        Plot = plot;
         oldPlot?.Dispose();
-        return newPlot;
+        Plot.PlotControl = this;
     }
 
     public void ShowContextMenu(Pixel position)
@@ -68,18 +69,21 @@ public abstract class FormsPlotBase : UserControl, IPlotControl
     internal void SKElement_MouseDown(object? sender, MouseEventArgs e)
     {
         Interaction.MouseDown(e.Pixel(), e.Button());
+        UserInputProcessor.ProcessMouseDown(e);
         base.OnMouseDown(e);
     }
 
     internal void SKElement_MouseUp(object? sender, MouseEventArgs e)
     {
         Interaction.MouseUp(e.Pixel(), e.Button());
+        UserInputProcessor.ProcessMouseUp(e);
         base.OnMouseUp(e);
     }
 
     internal void SKElement_MouseMove(object? sender, MouseEventArgs e)
     {
         Interaction.OnMouseMove(e.Pixel());
+        UserInputProcessor.ProcessMouseMove(e);
         base.OnMouseMove(e);
     }
 
@@ -92,18 +96,21 @@ public abstract class FormsPlotBase : UserControl, IPlotControl
     internal void SKElement_MouseWheel(object? sender, MouseEventArgs e)
     {
         Interaction.MouseWheelVertical(e.Pixel(), e.Delta);
+        UserInputProcessor.ProcessMouseWheel(e);
         base.OnMouseWheel(e);
     }
 
     internal void SKElement_KeyDown(object? sender, KeyEventArgs e)
     {
         Interaction.KeyDown(e.Key());
+        UserInputProcessor.ProcessKeyDown(e);
         base.OnKeyDown(e);
     }
 
     internal void SKElement_KeyUp(object? sender, KeyEventArgs e)
     {
         Interaction.KeyUp(e.Key());
+        UserInputProcessor.ProcessKeyUp(e);
         base.OnKeyUp(e);
     }
 

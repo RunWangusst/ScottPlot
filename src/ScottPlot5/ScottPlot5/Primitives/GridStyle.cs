@@ -3,8 +3,22 @@
 public class GridStyle
 {
     public bool IsVisible { get; set; } = true;
-    public LineStyle MajorLineStyle { get; set; } = LineStyle.DefaultMajorStyle;
-    public LineStyle MinorLineStyle { get; set; } = LineStyle.DefaultMinorStyle;
+
+    public LineStyle MajorLineStyle { get; set; } = new()
+    {
+        Width = 1,
+        Color = Colors.Black.WithOpacity(.1),
+        AntiAlias = false,
+    };
+
+    public LineStyle MinorLineStyle { get; set; } = new()
+    {
+        Width = 0,
+        IsVisible = true,
+        Color = Colors.Black.WithOpacity(.05),
+        AntiAlias = false,
+    };
+
     public int MaximumNumberOfGridLines { get; set; } = 1_000;
     public bool IsBeneathPlottables { get; set; } = true;
 
@@ -13,7 +27,7 @@ public class GridStyle
         if (!IsVisible)
             return;
 
-        if (MinorLineStyle.IsVisible && MinorLineStyle.Width > 0)
+        if (MinorLineStyle.CanBeRendered)
         {
             float[] xTicksMinor = ticks
                 .Where(x => !x.IsMajor)
@@ -24,7 +38,7 @@ public class GridStyle
             RenderGridLines(rp, xTicksMinor, axis.Edge, MinorLineStyle);
         }
 
-        if (MajorLineStyle.IsVisible && MajorLineStyle.Width > 0)
+        if (MajorLineStyle.CanBeRendered)
         {
             float[] xTicksMajor = ticks
                 .Where(x => x.IsMajor)
@@ -54,6 +68,7 @@ public class GridStyle
                 : new Pixel(rp.DataRect.Right, px);
         }
 
-        Drawing.DrawLines(rp.Canvas, starts, ends, lineStyle.Color, lineStyle.Width, antiAlias: true, lineStyle.Pattern);
+        using SKPaint paint = new();
+        lineStyle.Render(rp.Canvas, starts, ends, paint);
     }
 }
