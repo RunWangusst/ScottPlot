@@ -335,8 +335,7 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
             {
                 var deltaVertical = this.ExtentOrDefault.VerticalCenter - this.AlignedExtent.VerticalCenter;
                 var deltaHorizontal = this.ExtentOrDefault.HorizontalCenter - this.AlignedExtent.HorizontalCenter;
-                return Axes.GetPixelRect(new CoordinateRect(SelectedCell.Left - deltaHorizontal, SelectedCell.Right - deltaHorizontal,
-                    SelectedCell.Bottom - deltaVertical, SelectedCell.Top - deltaVertical)).ToSKRect();
+                return Axes.GetPixelRect(SelectedCell.WithTranslation(new Coordinates(-deltaHorizontal, -deltaVertical))).ToSKRect();
             }
         }
     }
@@ -377,7 +376,7 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
             rect.Height - CellHeight * yIndex - CellHeight, rect.Height - CellHeight * yIndex);
 
         var val = Intensities[yIndex, xIndex];
-        if (val == double.NaN)
+        if (double.IsNaN(val))
         {
             SelectedCell = CoordinateRect.Empty;
         }
