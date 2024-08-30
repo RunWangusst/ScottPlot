@@ -1,4 +1,6 @@
-﻿namespace ScottPlot.Plottables;
+﻿using System.Drawing;
+
+namespace ScottPlot.Plottables;
 
 public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
 {
@@ -241,7 +243,24 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
             Update();
         }
     }
+    /// <summary>
+    /// Set highlight cells
+    /// </summary>
+    /// <param name="points">indexes in heatmap</param>
+    public void SetHighlightCells(List<Point> points)
+    {
+        HighlightCells.Clear();
+        CoordinateRect rect = AlignedExtent;
 
+        foreach (var point in points)
+        {
+            // 当前选中的单元格 cell
+            var cell = new CoordinateRect(CellWidth * point.X, CellWidth * point.X + CellWidth,
+                rect.Height - CellHeight * point.Y - CellHeight, rect.Height - CellHeight * point.Y);
+
+            HighlightCells.Add(cell);
+        }
+    }
     /// <summary>
     /// Height of the heatmap data (rows)
     /// </summary>
@@ -322,9 +341,63 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
     {
         return new(AlignedExtent);
     }
-
+    /// <summary>
+    /// 当前选中的单元格
+    /// </summary>
     public CoordinateRect SelectedCell { get; set; }
+    public List<CoordinateRect> HighlightCells { get; set; } = new List<CoordinateRect>();
+    /// <summary>
+    /// 多选的点（单元格）
+    /// </summary>
+    public List<CoordinateRect> SelectedCells { get; set; } = new List<CoordinateRect>();
+    /// <summary>
+    /// 待绘制的所有单元格
+    /// </summary>
+    public List<SKRect> SelectedRects
+    {
+        get
+        {
+            if (SelectedCells.Count == 0)
+                return new List<SKRect>();
+            else
+            {
+                List<SKRect> rects = new List<SKRect>();
+                foreach (var item in SelectedCells)
+                {
+                    var deltaVertical = this.ExtentOrDefault.VerticalCenter - this.AlignedExtent.VerticalCenter;
+                    var deltaHorizontal = this.ExtentOrDefault.HorizontalCenter - this.AlignedExtent.HorizontalCenter;
+                    rects.Add(Axes.GetPixelRect(item.WithTranslation(new Coordinates(-deltaHorizontal, -deltaVertical))).ToSKRect());
+                }
 
+                return rects;
+            }
+        }
+    }
+
+    public List<SKRect> HighlightRects
+    {
+        get
+        {
+            if (HighlightCells.Count == 0)
+                return new List<SKRect>();
+            else
+            {
+                List<SKRect> rects = new List<SKRect>();
+                foreach (var item in HighlightCells)
+                {
+                    var deltaVertical = this.ExtentOrDefault.VerticalCenter - this.AlignedExtent.VerticalCenter;
+                    var deltaHorizontal = this.ExtentOrDefault.HorizontalCenter - this.AlignedExtent.HorizontalCenter;
+                    rects.Add(Axes.GetPixelRect(item.WithTranslation(new Coordinates(-deltaHorizontal, -deltaVertical))).ToSKRect());
+                }
+
+                return rects;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 待绘制的单元格
+    /// </summary>
     public SKRect SelectedRect
     {
         get
@@ -365,23 +438,51 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
         CoordinateRect rect = AlignedExtent;
 
         if (!rect.Contains(coordinates))
+            return double.NaN;
+
+        (int xIndex, int yIndex) = GetIndexes(coordinates);
+
+        return Intensities[yIndex, xIndex];
+    }
+
+    public void Select(Coordinates coordinates, bool isMultiSelect = false)
+    {
+        CoordinateRect rect = AlignedExtent;
+
+        if (!rect.Contains(coordinates))
         {
             SelectedCell = CoordinateRect.Empty;
-            return double.NaN;
         }
 
         (int xIndex, int yIndex) = GetIndexes(coordinates);
-        // 当前选中的单元格 cell
-        SelectedCell = new CoordinateRect(CellWidth * xIndex, CellWidth * xIndex + CellWidth,
-            rect.Height - CellHeight * yIndex - CellHeight, rect.Height - CellHeight * yIndex);
+
 
         var val = Intensities[yIndex, xIndex];
         if (double.IsNaN(val))
         {
             SelectedCell = CoordinateRect.Empty;
         }
+        else
+        {
+            // 当前选中的单元格 cell
+            SelectedCell = new CoordinateRect(CellWidth * xIndex, CellWidth * xIndex + CellWidth,
+                rect.Height - CellHeight * yIndex - CellHeight, rect.Height - CellHeight * yIndex);
+        }
 
-        return val;
+        if (!isMultiSelect) SelectedCells.Clear();
+
+        if (SelectedCell != CoordinateRect.Empty)
+        {
+            if (!SelectedCells.Contains(SelectedCell))
+            {
+                SelectedCells.Add(SelectedCell);
+            }
+            else
+            {
+                SelectedCells.Remove(SelectedCell);
+                SelectedCell = CoordinateRect.Empty;
+            }
+        }
     }
 
     public IEnumerable<LegendItem> LegendItems => Enumerable.Empty<LegendItem>();
@@ -423,11 +524,26 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
 
         rp.Canvas.DrawBitmap(Bitmap, rect, paint);
         paint.Color = SKColors.Red;
-        paint.StrokeWidth = 2;
-        paint.IsStroke = true;
-        if (!SelectedRect.IsEmpty)
+        //paint.StrokeWidth = 2;
+        paint.IsStroke = false;
+        if (SelectedRects.Count > 0)
         {
-            rp.Canvas.DrawRect(SelectedRect, paint);
+            foreach (var selectedRect in SelectedRects)
+            {
+                rp.Canvas.DrawRect(selectedRect, paint);
+            }
+        }
+
+        // Highlight Cells
+        paint.Color = SKColors.Yellow;
+        //paint.StrokeWidth = 2;
+        paint.IsStroke = false;
+        if (HighlightRects.Count > 0)
+        {
+            foreach (var highlightCell in HighlightRects)
+            {
+                rp.Canvas.DrawRect(highlightCell, paint);
+            }
         }
     }
 }

@@ -143,6 +143,8 @@ public partial class CookbookViewer : Form, IDemoWindow
             ScottPlot.Coordinates coordinates = new ScottPlot.Coordinates(rect.Left + rect.Width / 2, rect.Bottom + rect.Height / 2);
             (int xIndex, int yIndex) = heatmap.GetIndexes(coordinates);
             var aa = heatmap.GetValue(coordinates);
+            if (!Double.IsNaN(aa))
+                heatmap.Select(coordinates, true);
 
             rtbDescription.Text = $"({coordinates.X}, {coordinates.Y})\n{xIndex},{yIndex}\n{aa}\n" +
                 $"pixel rect: {heatmap.SelectedRect} \n" +
@@ -156,5 +158,17 @@ public partial class CookbookViewer : Form, IDemoWindow
     private void tbFilter_TextChanged(object sender, EventArgs e)
     {
         UpdateRecipeList(tbFilter.Text);
+    }
+
+    private void btnhighLight_Click(object sender, EventArgs e)
+    {
+        var heatmap = formsPlot1.Plot.PlottableList.OfType<ScottPlot.Plottables.Heatmap>().FirstOrDefault();
+
+        if (null != heatmap)
+        {
+            (int xIndex, int yIndex) = heatmap.GetIndexes(heatmap.SelectedCell.Center);
+            heatmap.SetHighlightCells(new List<Point>() { new Point(xIndex, yIndex) });
+            formsPlot1.Refresh();
+        }
     }
 }
