@@ -261,6 +261,13 @@ public class Heatmap(double[,] intensities) : IPlottable, IHasColorAxis
             HighlightCells.Add(cell);
         }
     }
+
+    public void ClearSelectedCells()
+    {
+        SelectedCells.Clear();
+        HighlightCells.Clear();
+        SelectedCell = CoordinateRect.Empty;
+    }
     /// <summary>
     /// Height of the heatmap data (rows)
     /// </summary>
